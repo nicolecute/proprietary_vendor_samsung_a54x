@@ -64,6 +64,9 @@ jobs:
           - model: "SM-A546S"
             csc: "SKC"
             omc: "SKC"
+          - model: "SM-A546V"
+            csc: "PCT"
+            omc: "OWA"
 
     steps:
       - name: Checkout repo
@@ -118,6 +121,8 @@ jobs:
               imei="356642731234562"
           elif [[ "${{ matrix.model }}" == "SM-A546W" ]]; then
               imei="351617731234569"
+          elif [[ "${{ matrix.model }}" == "SM-A546V" ]]; then
+              imei="351783151234560"
           elif [[ "${{ matrix.model }}" == "SM-A546S" ]]; then
               imei="351992291234568"
           else
