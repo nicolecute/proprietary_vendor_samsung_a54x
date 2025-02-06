@@ -173,8 +173,7 @@ class LpMetadataBase:
     _fmt = None
 
     @classmethod
-    @property
-    def size(cls) -> int:
+    def get_size(cls) -> int:
         return struct.calcsize(cls._fmt)
 
 
@@ -196,15 +195,22 @@ class LpMetadataGeometry(LpMetadataBase):
     _fmt = '<2I32s3I'
 
     def __init__(self, buffer):
-        (
-            self.magic,
-            self.struct_size,
-            self.checksum,
-            self.metadata_max_size,
-            self.metadata_slot_count,
-            self.logical_block_size
+        size = self.get_size()
+        if not buffer or len(buffer) < size:
+            raise LpUnpackError(f'Invalid or empty geometry buffer. Expected {size} bytes, got {len(buffer) if buffer else 0}')
+        
+        try:
+            (
+                self.magic,
+                self.struct_size,
+                self.checksum,
+                self.metadata_max_size,
+                self.metadata_slot_count,
+                self.logical_block_size
 
-        ) = struct.unpack(self._fmt, buffer[0:self.size])
+            ) = struct.unpack(self._fmt, buffer[0:size])
+        except struct.error as e:
+            raise LpUnpackError(f'Failed to unpack geometry data: {str(e)}')
 
 
 class LpMetadataTableDescriptor(LpMetadataBase):
@@ -224,7 +230,7 @@ class LpMetadataTableDescriptor(LpMetadataBase):
             self.num_entries,
             self.entry_size
 
-        ) = struct.unpack(self._fmt, buffer[:self.size])
+        ) = struct.unpack(self._fmt, buffer[:self.get_size()])
 
 
 class LpMetadataPartition(LpMetadataBase):
@@ -255,7 +261,7 @@ class LpMetadataPartition(LpMetadataBase):
             self.num_extents,
             self.group_index
 
-        ) = struct.unpack(self._fmt, buffer[0:self.size])
+        ) = struct.unpack(self._fmt, buffer[0:self.get_size()])
 
         self.name = self.name.decode("utf-8").strip('\x00')
 
@@ -347,7 +353,7 @@ class LpMetadataHeader(LpMetadataBase):
             self.tables_size,
             self.tables_checksum
 
-        ) = struct.unpack(self._fmt, buffer[0:self.size])
+        ) = struct.unpack(self._fmt, buffer[0:self.get_size()])
         self.flags = 0
 
 
@@ -366,7 +372,7 @@ class LpMetadataPartitionGroup(LpMetadataBase):
             self.name,
             self.flags,
             self.maximum_size
-        ) = struct.unpack(self._fmt, buffer[0:self.size])
+        ) = struct.unpack(self._fmt, buffer[0:self.get_size()])
 
         self.name = self.name.decode("utf-8").strip('\x00')
 
@@ -411,7 +417,7 @@ class LpMetadataBlockDevice(LpMetadataBase):
             self.block_device_size,
             self.partition_name,
             self.flags
-        ) = struct.unpack(self._fmt, buffer[0:self.size])
+        ) = struct.unpack(self._fmt, buffer[0:self.get_size()])
 
         self.partition_name = self.partition_name.decode("utf-8").strip('\x00')
 
@@ -735,11 +741,11 @@ class LpUnpack(object):
         offsets = metadata.get_offsets()
         for index, offset in enumerate(offsets):
             self._fd.seek(offset, io.SEEK_SET)
-            header = LpMetadataHeader(self._fd.read(cast(int, LpMetadataHeader.size)))
-            header.partitions = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.size)))
-            header.extents = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.size)))
-            header.groups = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.size)))
-            header.block_devices = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.size)))
+            header = LpMetadataHeader(self._fd.read(cast(int, LpMetadataHeader.get_size())))
+            header.partitions = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.get_size())))
+            header.extents = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.get_size())))
+            header.groups = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.get_size())))
+            header.block_devices = LpMetadataTableDescriptor(self._fd.read(cast(int, LpMetadataTableDescriptor.get_size())))
 
             if header.magic != LP_METADATA_HEADER_MAGIC:
                 check_index = index + 1
@@ -801,11 +807,21 @@ class LpUnpack(object):
         return metadata
 
     def _read_primary_geometry(self) -> LpMetadataGeometry:
-        geometry = LpMetadataGeometry(self._fd.read(LP_METADATA_GEOMETRY_SIZE))
-        if geometry is not None:
+        try:
+            buffer = self._fd.read(LP_METADATA_GEOMETRY_SIZE)
+            if not buffer:
+                raise LpUnpackError('Failed to read geometry data - empty buffer')
+                
+            geometry = LpMetadataGeometry(buffer)
+            if geometry is None:
+                raise LpUnpackError('Failed to create geometry object')
+                
             return geometry
-        else:
-            return LpMetadataGeometry(self._fd.read(LP_METADATA_GEOMETRY_SIZE))
+            
+        except IOError as e:
+            raise LpUnpackError(f'Failed to read geometry data: {str(e)}')
+        except Exception as e:
+            raise LpUnpackError(f'Unexpected error reading geometry: {str(e)}')
 
     def _write_extent_to_file(self, fd: IO, offset: int, size: int, block_size: int):
         self._fd.seek(offset)
