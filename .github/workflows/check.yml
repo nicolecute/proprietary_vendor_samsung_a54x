@@ -14,59 +14,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # A54X_CHN_OPEN
-          - model: "SM-A5460"
-            csc: "CHC"
-            omc: "CHC"
-          # A54X_CHN_HK
-          - model: "SM-A5460"
-            csc: "BRI"
-            omc: "OZS"
-          # A54X_EUR_OPEN
-          - model: "SM-A546B"
-            csc: "EUX"
-            omc: "OXM"
-          # A54X_SEA_OPEN
           - model: "SM-A546E"
-            csc: "INS"
-            omc: "ODM"
-          - model: "SM-A546E"
-            csc: "EGY"
-            omc: "OJM"
-          - model: "SM-A546E"
-            csc: "XID"
-            omc: "OLE"
-          - model: "SM-A546E"
-            csc: "XSA"
+            csc: "THL"
             omc: "OLM"
-          - model: "SM-A546E"
-            csc: "PEO"
-            omc: "OWB"
-          - model: "SM-A546E"
-            csc: "ZTO"
-            omc: "OWO"
-          - model: "SM-A546E"
-            csc: "SEK"
-            omc: "OXE"
-          # A54X_USA_SINGLEX
-          - model: "SM-A546U"
-            csc: "CCT"
-            omc: "OYN"
-          # A54X_USA_OPEN
-          - model: "SM-A546U1"
-            csc: "XAA"
-            omc: "OYM"
-          # A54X_CAN_SINGLE
-          - model: "SM-A546W"
-            csc: "XAC"
-            omc: "OYV"
-          # A54X_KOR_SKT
-          - model: "SM-A546S"
-            csc: "SKC"
-            omc: "SKC"
-          - model: "SM-A546V"
-            csc: "PCT"
-            omc: "OWA"
 
     steps:
       - name: Checkout repo
